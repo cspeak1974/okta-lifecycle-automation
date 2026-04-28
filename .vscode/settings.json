@@ -1,0 +1,6 @@
+{
+    "terminal.integrated.defaultProfile.linux": "bash-venv",
+    "terminal.integrated.automationProfile.linux": null,
+    "python.terminal.useEnvFile": true,
+    "python.envFile": "${workspaceFolder}/.env"
+}
