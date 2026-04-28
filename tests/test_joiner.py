@@ -1,10 +1,10 @@
 """Tests for scripts/joiner.py — all HTTP calls are mocked."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, call
 
 import scripts.joiner as joiner
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -203,7 +203,9 @@ class TestProvisionUser:
     def test_happy_path_calls_all_steps(self):
         with (
             patch("scripts.joiner.create_user", return_value=FAKE_USER) as mock_create,
-            patch("scripts.joiner.find_groups_for_department", return_value=FAKE_GROUPS[:2]) as mock_groups,
+            patch(
+                "scripts.joiner.find_groups_for_department", return_value=FAKE_GROUPS[:2]
+            ) as mock_groups,
             patch("scripts.joiner.assign_user_to_groups") as mock_assign,
             patch("scripts.joiner.activate_user") as mock_activate,
             patch("scripts.joiner.send_slack_notification") as mock_slack,
@@ -217,7 +219,9 @@ class TestProvisionUser:
             )
 
         assert result == FAKE_USER
-        mock_create.assert_called_once_with("Jane", "Doe", "jane.doe@example.com", "jane.doe@example.com", "Engineering")
+        mock_create.assert_called_once_with(
+            "Jane", "Doe", "jane.doe@example.com", "jane.doe@example.com", "Engineering"
+        )
         mock_groups.assert_called_once_with("Engineering")
         mock_assign.assert_called_once_with(FAKE_USER["id"], FAKE_GROUPS[:2])
         mock_activate.assert_called_once_with(FAKE_USER["id"])

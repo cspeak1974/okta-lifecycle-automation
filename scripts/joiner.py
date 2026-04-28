@@ -16,7 +16,6 @@ Environment variables required (.env):
 """
 
 import argparse
-import json
 import os
 import sys
 
@@ -160,7 +159,9 @@ def provision_user(
     if groups:
         assign_user_to_groups(user_id, groups)
     else:
-        print(f"Warning: no groups found for department '{department}' — skipping group assignment.")
+        print(
+            f"Warning: no groups found for department '{department}' — skipping group assignment."
+        )
 
     activate_user(user_id)
     send_slack_notification(first_name, last_name, department)
@@ -186,7 +187,10 @@ def _parse_args() -> argparse.Namespace:
 def _validate_env() -> None:
     missing = [var for var in ("OKTA_ORG_URL", "OKTA_API_TOKEN") if not os.getenv(var)]
     if missing:
-        print(f"Error: missing required environment variables: {', '.join(missing)}", file=sys.stderr)
+        print(
+            f"Error: missing required environment variables: {', '.join(missing)}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
 
