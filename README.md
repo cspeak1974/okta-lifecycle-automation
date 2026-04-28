@@ -64,6 +64,14 @@ make format    # run ruff formatter
 make clean     # remove build artifacts
 ```
 
+## Testing
+
+Tests use `pytest` with mocked API calls — no real Okta credentials needed to run tests.
+
+```bash
+make test
+```
+
 ## Project Structure
 
 ```
