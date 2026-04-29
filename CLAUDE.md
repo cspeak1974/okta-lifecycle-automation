@@ -123,13 +123,13 @@ SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
 - [x] `tests/test_joiner.py` written with mocked API calls
 - [x] `make lint` and `make test` both passing
 - [x] Engineering and IT groups created in Okta for testing
+- [x] Write `leaver.py` — suspend, revoke sessions, remove groups, deactivate
+- [x] Write `tests/test_leaver.py`
+- [x] Write `mover.py` — update groups/profile on department change
+- [x] Write `tests/test_mover.py`
 
 ## What's Next
 
-- [ ] Write `leaver.py` — suspend, revoke sessions, remove groups, deactivate
-- [ ] Write `tests/test_leaver.py`
-- [ ] Write `mover.py` — update groups/profile on department change
-- [ ] Write `tests/test_mover.py`
 - [ ] Build Okta Workflows (5 flows)
 - [ ] Screenshot and document Workflows in `workflows/`
 - [ ] Write `docs/architecture.md`
