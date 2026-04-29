@@ -46,7 +46,7 @@ NON_SYSTEM_GROUPS = [FAKE_GROUPS[0]]
 
 class TestGetUser:
     def test_happy_path_by_id(self):
-        with patch("scripts.leaver.requests.get") as mock_get:
+        with patch("okta_client.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, FAKE_USER)
 
             user = leaver.get_user("00u1ab2cd3EF4GH5IJ6")
@@ -55,7 +55,7 @@ class TestGetUser:
         mock_get.assert_called_once()
 
     def test_happy_path_by_login(self):
-        with patch("scripts.leaver.requests.get") as mock_get:
+        with patch("okta_client.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, FAKE_USER)
 
             user = leaver.get_user("jane.doe@example.com")
@@ -63,7 +63,7 @@ class TestGetUser:
         assert user["profile"]["login"] == "jane.doe@example.com"
 
     def test_404_raises(self):
-        with patch("scripts.leaver.requests.get") as mock_get:
+        with patch("okta_client.requests.get") as mock_get:
             mock_get.return_value = _mock_response(404, text="Not found")
 
             with pytest.raises(RuntimeError, match="Get user .* failed \\[404\\]"):

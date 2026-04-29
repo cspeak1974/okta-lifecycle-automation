@@ -19,43 +19,9 @@ import os
 import sys
 
 import requests
-from dotenv import load_dotenv
+from okta_client import OKTA_ORG_URL, _headers, _raise_for_status, get_user
 
-load_dotenv()
-
-OKTA_ORG_URL = os.getenv("OKTA_ORG_URL", "").rstrip("/")
-OKTA_API_TOKEN = os.getenv("OKTA_API_TOKEN", "")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
-
-
-def _headers() -> dict:
-    return {
-        "Authorization": f"SSWS {OKTA_API_TOKEN}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-
-
-def _raise_for_status(response: requests.Response, context: str) -> None:
-    if not response.ok:
-        raise RuntimeError(
-            f"{context} failed [{response.status_code}]: {response.text}"
-        )
-
-
-# ---------------------------------------------------------------------------
-# Step 1: Resolve user
-# ---------------------------------------------------------------------------
-
-
-def get_user(login_or_id: str) -> dict:
-    """Fetch an Okta user by ID or login (email). Returns the user object."""
-    url = f"{OKTA_ORG_URL}/api/v1/users/{login_or_id}"
-    response = requests.get(url, headers=_headers())
-    _raise_for_status(response, f"Get user '{login_or_id}'")
-    user = response.json()
-    print(f"Found user: {user['id']} ({user['profile']['login']})")
-    return user
 
 
 # ---------------------------------------------------------------------------

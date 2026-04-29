@@ -20,33 +20,15 @@ import os
 import sys
 
 import requests
-from dotenv import load_dotenv
+from okta_client import OKTA_ORG_URL, _headers, _raise_for_status, find_groups_for_department
 
-load_dotenv()
-
-OKTA_ORG_URL = os.getenv("OKTA_ORG_URL", "").rstrip("/")
-OKTA_API_TOKEN = os.getenv("OKTA_API_TOKEN", "")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
-
-
-def _headers() -> dict:
-    return {
-        "Authorization": f"SSWS {OKTA_API_TOKEN}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-
-
-def _raise_for_status(response: requests.Response, context: str) -> None:
-    if not response.ok:
-        raise RuntimeError(
-            f"{context} failed [{response.status_code}]: {response.text}"
-        )
 
 
 # ---------------------------------------------------------------------------
 # Step 1: Create user
 # ---------------------------------------------------------------------------
+
 
 def create_user(
     first_name: str,
@@ -74,25 +56,9 @@ def create_user(
 
 
 # ---------------------------------------------------------------------------
-# Step 2: Find groups by department
+# Step 2: Assign user to groups
 # ---------------------------------------------------------------------------
 
-def find_groups_for_department(department: str) -> list[dict]:
-    """Return all Okta groups whose name contains the department string."""
-    url = f"{OKTA_ORG_URL}/api/v1/groups"
-    params = {"q": department, "limit": 200}
-    response = requests.get(url, headers=_headers(), params=params)
-    _raise_for_status(response, "List groups")
-    groups = response.json()
-    matched = [g for g in groups if department.lower() in g["profile"]["name"].lower()]
-    print(f"Found {len(matched)} group(s) for department '{department}': "
-          f"{[g['profile']['name'] for g in matched]}")
-    return matched
-
-
-# ---------------------------------------------------------------------------
-# Step 3: Assign user to groups
-# ---------------------------------------------------------------------------
 
 def assign_user_to_groups(user_id: str, groups: list[dict]) -> None:
     """Add the user to each group. Idempotent — re-adding is a no-op in Okta."""
@@ -108,8 +74,9 @@ def assign_user_to_groups(user_id: str, groups: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step 4: Activate user
+# Step 3: Activate user
 # ---------------------------------------------------------------------------
+
 
 def activate_user(user_id: str) -> None:
     """Activate the user and send an Okta activation email."""
@@ -120,8 +87,9 @@ def activate_user(user_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step 5: Send Slack welcome notification (optional)
+# Step 4: Send Slack welcome notification (optional)
 # ---------------------------------------------------------------------------
+
 
 def send_slack_notification(first_name: str, last_name: str, department: str) -> None:
     if not SLACK_WEBHOOK_URL:
@@ -143,6 +111,7 @@ def send_slack_notification(first_name: str, last_name: str, department: str) ->
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
+
 
 def provision_user(
     first_name: str,
@@ -173,6 +142,7 @@ def provision_user(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Provision a new Okta user (joiner).")

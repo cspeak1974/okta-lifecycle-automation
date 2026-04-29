@@ -80,7 +80,7 @@ class TestCreateUser:
 
 class TestFindGroupsForDepartment:
     def test_returns_only_matching_groups(self):
-        with patch("scripts.joiner.requests.get") as mock_get:
+        with patch("okta_client.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, FAKE_GROUPS)
 
             matched = joiner.find_groups_for_department("Engineering")
@@ -92,7 +92,7 @@ class TestFindGroupsForDepartment:
         assert "Marketing" not in names
 
     def test_no_matches_returns_empty_list(self):
-        with patch("scripts.joiner.requests.get") as mock_get:
+        with patch("okta_client.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, FAKE_GROUPS)
 
             matched = joiner.find_groups_for_department("Finance")
@@ -100,7 +100,7 @@ class TestFindGroupsForDepartment:
         assert matched == []
 
     def test_api_error_raises(self):
-        with patch("scripts.joiner.requests.get") as mock_get:
+        with patch("okta_client.requests.get") as mock_get:
             mock_get.return_value = _mock_response(403, text="Forbidden")
 
             with pytest.raises(RuntimeError, match="List groups failed \\[403\\]"):
