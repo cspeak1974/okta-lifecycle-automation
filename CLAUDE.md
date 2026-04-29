@@ -136,3 +136,12 @@ SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
 - [ ] Polish README for hiring manager
 - [ ] Set up branch protection on main
 - [ ] Demo dry run
+
+## Optional / Stretch Goals
+
+- [ ] Replace hardcoded group IDs in joiner flow with dynamic lookup
+        (e.g. store department → group ID mapping as Okta custom attribute
+        or Workflows table, look up at runtime instead of hardcoding)
+- [ ] Add If/Else branch to joiner flow to assign group based on
+        department attribute (Engineering vs IT) instead of hardcoding
+        a single group for all new users
