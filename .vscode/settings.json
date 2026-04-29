@@ -3,5 +3,6 @@
     "terminal.integrated.automationProfile.linux": null,
     "python.terminal.useEnvFile": true,
     "python.envFile": "${workspaceFolder}/.env",
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.analysis.extraPaths": ["${workspaceFolder}/scripts"]
 }
