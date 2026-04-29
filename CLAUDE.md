@@ -92,6 +92,13 @@ SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
   In production, secrets would be managed via a dedicated secret manager such as
   HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault, with environment
   variables injected at runtime by the deployment platform (Kubernetes, Docker, CI/CD)
+  
+## VS Code Settings Notes
+
+- `python.defaultInterpreterPath` — explicitly points to `.venv` to fix interpreter detection
+- `python.analysis.extraPaths` — adds `scripts/` to Pylance's analysis path, fixing
+  "module not found" warnings when importing from `okta_client`
+- `python.terminal.useEnvFile` — injects `.env` variables into the integrated terminal
 
 ## Testing Guidelines
 
