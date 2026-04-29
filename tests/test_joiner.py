@@ -114,7 +114,7 @@ class TestFindGroupsForDepartment:
 class TestAssignUserToGroups:
     def test_puts_to_each_group(self):
         groups = FAKE_GROUPS[:2]  # Engineering, Engineering-Leads
-        with patch("scripts.joiner.requests.put") as mock_put:
+        with patch("okta_client.requests.put") as mock_put:
             mock_put.return_value = _mock_response(204)
 
             joiner.assign_user_to_groups("00u1ab2cd3EF4GH5IJ6", groups)
@@ -123,7 +123,7 @@ class TestAssignUserToGroups:
 
     def test_200_already_member_is_ok(self):
         groups = [FAKE_GROUPS[0]]
-        with patch("scripts.joiner.requests.put") as mock_put:
+        with patch("okta_client.requests.put") as mock_put:
             mock_put.return_value = _mock_response(200)  # already a member
 
             joiner.assign_user_to_groups("00u1ab2cd3EF4GH5IJ6", groups)
@@ -132,7 +132,7 @@ class TestAssignUserToGroups:
 
     def test_non_200_204_raises(self):
         groups = [FAKE_GROUPS[0]]
-        with patch("scripts.joiner.requests.put") as mock_put:
+        with patch("okta_client.requests.put") as mock_put:
             mock_put.return_value = _mock_response(500, text="Internal Server Error")
 
             with pytest.raises(RuntimeError, match="Assign group 'Engineering' failed \\[500\\]"):

@@ -23,51 +23,17 @@ from okta_client import (
     OKTA_ORG_URL,
     _headers,
     _raise_for_status,
+    assign_user_to_groups,
     find_groups_for_department,
     get_user,
+    remove_user_from_groups,
 )
 
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 
 
 # ---------------------------------------------------------------------------
-# Step 3: Remove user from old department groups
-# ---------------------------------------------------------------------------
-
-
-def remove_user_from_groups(user_id: str, groups: list[dict]) -> None:
-    """Remove the user from each group. Idempotent — 404 means already removed."""
-    for group in groups:
-        group_id = group["id"]
-        group_name = group["profile"]["name"]
-        url = f"{OKTA_ORG_URL}/api/v1/groups/{group_id}/users/{user_id}"
-        response = requests.delete(url, headers=_headers())
-        # 204 = removed, 404 = already not a member — both are fine
-        if response.status_code not in (204, 404):
-            _raise_for_status(response, f"Remove from group '{group_name}'")
-        print(f"Removed from group: {group_name}")
-
-
-# ---------------------------------------------------------------------------
-# Step 4: Add user to new department groups
-# ---------------------------------------------------------------------------
-
-
-def assign_user_to_groups(user_id: str, groups: list[dict]) -> None:
-    """Add the user to each group. Idempotent — re-adding is a no-op in Okta."""
-    for group in groups:
-        group_id = group["id"]
-        group_name = group["profile"]["name"]
-        url = f"{OKTA_ORG_URL}/api/v1/groups/{group_id}/users/{user_id}"
-        response = requests.put(url, headers=_headers())
-        # 204 = added, 200 = already a member — both are success
-        if response.status_code not in (200, 204):
-            _raise_for_status(response, f"Assign group '{group_name}'")
-        print(f"Assigned to group: {group_name}")
-
-
-# ---------------------------------------------------------------------------
-# Step 5: Update department attribute on Okta profile
+# Step 3: Update department attribute on Okta profile
 # ---------------------------------------------------------------------------
 
 

@@ -20,7 +20,13 @@ import os
 import sys
 
 import requests
-from okta_client import OKTA_ORG_URL, _headers, _raise_for_status, find_groups_for_department
+from okta_client import (
+    OKTA_ORG_URL,
+    _headers,
+    _raise_for_status,
+    assign_user_to_groups,
+    find_groups_for_department,
+)
 
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 
@@ -56,25 +62,7 @@ def create_user(
 
 
 # ---------------------------------------------------------------------------
-# Step 2: Assign user to groups
-# ---------------------------------------------------------------------------
-
-
-def assign_user_to_groups(user_id: str, groups: list[dict]) -> None:
-    """Add the user to each group. Idempotent — re-adding is a no-op in Okta."""
-    for group in groups:
-        group_id = group["id"]
-        group_name = group["profile"]["name"]
-        url = f"{OKTA_ORG_URL}/api/v1/groups/{group_id}/users/{user_id}"
-        response = requests.put(url, headers=_headers())
-        # 204 = added, 200 = already a member — both are success
-        if response.status_code not in (200, 204):
-            _raise_for_status(response, f"Assign group '{group_name}'")
-        print(f"Assigned to group: {group_name}")
-
-
-# ---------------------------------------------------------------------------
-# Step 3: Activate user
+# Step 2: Activate user
 # ---------------------------------------------------------------------------
 
 

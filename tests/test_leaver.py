@@ -153,7 +153,7 @@ class TestGetUserGroups:
 
 class TestRemoveUserFromGroups:
     def test_deletes_from_each_group(self):
-        with patch("scripts.leaver.requests.delete") as mock_delete:
+        with patch("okta_client.requests.delete") as mock_delete:
             mock_delete.return_value = _mock_response(204)
 
             leaver.remove_user_from_groups("00u1ab2cd3EF4GH5IJ6", NON_SYSTEM_GROUPS)
@@ -161,14 +161,14 @@ class TestRemoveUserFromGroups:
         assert mock_delete.call_count == 1
 
     def test_404_already_removed_is_ok(self):
-        with patch("scripts.leaver.requests.delete") as mock_delete:
+        with patch("okta_client.requests.delete") as mock_delete:
             mock_delete.return_value = _mock_response(404)
 
             # should not raise
             leaver.remove_user_from_groups("00u1ab2cd3EF4GH5IJ6", NON_SYSTEM_GROUPS)
 
     def test_500_raises(self):
-        with patch("scripts.leaver.requests.delete") as mock_delete:
+        with patch("okta_client.requests.delete") as mock_delete:
             mock_delete.return_value = _mock_response(500, text="Server error")
 
             with pytest.raises(

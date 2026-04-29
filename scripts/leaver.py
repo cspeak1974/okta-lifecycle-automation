@@ -19,7 +19,7 @@ import os
 import sys
 
 import requests
-from okta_client import OKTA_ORG_URL, _headers, _raise_for_status, get_user
+from okta_client import OKTA_ORG_URL, _headers, _raise_for_status, get_user, remove_user_from_groups
 
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 
@@ -67,19 +67,6 @@ def get_user_groups(user_id: str) -> list[dict]:
     groups = response.json()
     # The built-in "Everyone" group cannot be removed from — skip it
     return [g for g in groups if g["profile"]["name"] != "Everyone"]
-
-
-def remove_user_from_groups(user_id: str, groups: list[dict]) -> None:
-    """Remove the user from each group. Idempotent — 404 means already removed."""
-    for group in groups:
-        group_id = group["id"]
-        group_name = group["profile"]["name"]
-        url = f"{OKTA_ORG_URL}/api/v1/groups/{group_id}/users/{user_id}"
-        response = requests.delete(url, headers=_headers())
-        # 204 = removed, 404 = already not a member — both are fine
-        if response.status_code not in (204, 404):
-            _raise_for_status(response, f"Remove from group '{group_name}'")
-        print(f"Removed from group: {group_name}")
 
 
 # ---------------------------------------------------------------------------

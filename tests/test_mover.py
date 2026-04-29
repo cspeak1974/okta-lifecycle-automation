@@ -113,7 +113,7 @@ class TestFindGroupsForDepartment:
 
 class TestRemoveUserFromGroups:
     def test_deletes_from_each_group(self):
-        with patch("scripts.mover.requests.delete") as mock_delete:
+        with patch("okta_client.requests.delete") as mock_delete:
             mock_delete.return_value = _mock_response(204)
 
             mover.remove_user_from_groups("00u1ab2cd3EF4GH5IJ6", ENG_GROUPS)
@@ -121,13 +121,13 @@ class TestRemoveUserFromGroups:
         assert mock_delete.call_count == 2
 
     def test_404_already_removed_is_ok(self):
-        with patch("scripts.mover.requests.delete") as mock_delete:
+        with patch("okta_client.requests.delete") as mock_delete:
             mock_delete.return_value = _mock_response(404)
 
             mover.remove_user_from_groups("00u1ab2cd3EF4GH5IJ6", ENG_GROUPS)
 
     def test_500_raises(self):
-        with patch("scripts.mover.requests.delete") as mock_delete:
+        with patch("okta_client.requests.delete") as mock_delete:
             mock_delete.return_value = _mock_response(500, text="Server error")
 
             with pytest.raises(
@@ -143,7 +143,7 @@ class TestRemoveUserFromGroups:
 
 class TestAssignUserToGroups:
     def test_puts_to_each_group(self):
-        with patch("scripts.mover.requests.put") as mock_put:
+        with patch("okta_client.requests.put") as mock_put:
             mock_put.return_value = _mock_response(204)
 
             mover.assign_user_to_groups("00u1ab2cd3EF4GH5IJ6", MKT_GROUPS)
@@ -151,7 +151,7 @@ class TestAssignUserToGroups:
         assert mock_put.call_count == 1
 
     def test_200_already_member_is_ok(self):
-        with patch("scripts.mover.requests.put") as mock_put:
+        with patch("okta_client.requests.put") as mock_put:
             mock_put.return_value = _mock_response(200)
 
             mover.assign_user_to_groups("00u1ab2cd3EF4GH5IJ6", MKT_GROUPS)
@@ -159,7 +159,7 @@ class TestAssignUserToGroups:
         mock_put.assert_called_once()
 
     def test_error_raises(self):
-        with patch("scripts.mover.requests.put") as mock_put:
+        with patch("okta_client.requests.put") as mock_put:
             mock_put.return_value = _mock_response(500, text="Server error")
 
             with pytest.raises(
