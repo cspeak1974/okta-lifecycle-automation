@@ -109,18 +109,23 @@ SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
 - [x] API token created
 - [x] Project scaffolded with Cookiecutter template
 - [x] GitHub repo created
+- [x] `.env` configured with Okta credentials
+- [x] Dependencies installed (requests, python-dotenv, pytest, ruff)
+- [x] `pyproject.toml` configured with pytest and ruff settings
+- [x] `joiner.py` written and tested against live Okta org
+- [x] `tests/test_joiner.py` written with mocked API calls
+- [x] `make lint` and `make test` both passing
+- [x] Engineering and IT groups created in Okta for testing
 
 ## What's Next
 
-- [ ] Set up .env with Okta credentials
-- [ ] Install dependencies (okta, requests, python-dotenv)
-- [ ] Write joiner.py
-- [ ] Write mover.py
-- [ ] Write leaver.py
-- [ ] Write tests
-- [ ] Build Okta Workflows
-- [ ] Screenshot and document Workflows
-- [ ] Write architecture.md
+- [ ] Write `leaver.py` — suspend, revoke sessions, remove groups, deactivate
+- [ ] Write `tests/test_leaver.py`
+- [ ] Write `mover.py` — update groups/profile on department change
+- [ ] Write `tests/test_mover.py`
+- [ ] Build Okta Workflows (5 flows)
+- [ ] Screenshot and document Workflows in `workflows/`
+- [ ] Write `docs/architecture.md`
 - [ ] Polish README for hiring manager
 - [ ] Set up branch protection on main
 - [ ] Demo dry run
