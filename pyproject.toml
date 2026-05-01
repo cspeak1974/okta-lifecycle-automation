@@ -11,6 +11,11 @@ select = ["E", "F", "I"]
 # F - pyflakes (undefined names, unused imports etc.)
 # I - isort (import sorting)
 
+[tool.ruff.lint.per-file-ignores]
+# scripts/ run directly via `python scripts/foo.py`, so they insert the project root into
+# sys.path before importing utils.slack — E402 fires on imports that follow that insertion.
+"scripts/*.py" = ["E402"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

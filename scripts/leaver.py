@@ -9,20 +9,23 @@ Usage:
     python scripts/leaver.py --login jane.doe@example.com
 
 Environment variables required (.env):
-    OKTA_ORG_URL   — e.g. https://your-org.okta.com
-    OKTA_API_TOKEN — Okta API token with User and Group write permissions
-    SLACK_WEBHOOK_URL — (optional) Slack incoming webhook for offboarding notification
+    OKTA_ORG_URL         — e.g. https://your-org.okta.com
+    OKTA_API_TOKEN       — Okta API token with User and Group write permissions
+    SLACK_WEBHOOK_EVENTS — (optional) Slack incoming webhook for #okta-events channel
+    SLACK_WEBHOOK_ERRORS — (optional) Slack incoming webhook for #okta-errors channel
 """
 
 import argparse
 import os
 import sys
 
+# Add project root to sys.path so utils/ is importable when running scripts directly
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import requests
 from okta_client import OKTA_ORG_URL, _headers, _raise_for_status, get_user, remove_user_from_groups
 
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
-
+from utils.slack import notify_error, notify_event
 
 # ---------------------------------------------------------------------------
 # Step 2: Suspend user
@@ -87,51 +90,37 @@ def deactivate_user(user_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step 6: Send Slack offboarding notification (optional)
-# ---------------------------------------------------------------------------
-
-
-def send_slack_notification(login: str) -> None:
-    if not SLACK_WEBHOOK_URL:
-        return
-    message = {
-        "text": (
-            f":wave: Offboarding complete for *{login}*. "
-            "Okta account suspended, sessions revoked, groups removed, and deactivated."
-        )
-    }
-    response = requests.post(SLACK_WEBHOOK_URL, json=message)
-    if response.ok:
-        print("Slack notification sent.")
-    else:
-        print(f"Slack notification failed (non-fatal): {response.status_code}")
-
-
-# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
 
 def offboard_user(login_or_id: str) -> dict:
     """Full leaver flow. Returns the user object."""
-    user = get_user(login_or_id)
-    user_id = user["id"]
-    login = user["profile"]["login"]
+    try:
+        user = get_user(login_or_id)
+        user_id = user["id"]
+        login = user["profile"]["login"]
 
-    suspend_user(user_id)
-    revoke_sessions(user_id)
+        suspend_user(user_id)
+        revoke_sessions(user_id)
 
-    groups = get_user_groups(user_id)
-    if groups:
-        remove_user_from_groups(user_id, groups)
-    else:
-        print("No non-system groups to remove.")
+        groups = get_user_groups(user_id)
+        if groups:
+            remove_user_from_groups(user_id, groups)
+        else:
+            print("No non-system groups to remove.")
 
-    deactivate_user(user_id)
-    send_slack_notification(login)
+        deactivate_user(user_id)
 
-    print(f"\nLeaver complete for {login}.")
-    return user
+        print(f"\nLeaver complete for {login}.")
+        notify_event(
+            f":wave: Leaver complete: *{login}* ({user_id}) suspended, sessions revoked, "
+            "groups removed, and deactivated."
+        )
+        return user
+    except Exception as exc:
+        notify_error(f":x: Leaver failed for *{login_or_id}*: {exc}")
+        raise
 
 
 # ---------------------------------------------------------------------------

@@ -10,14 +10,18 @@ Usage:
         --department Engineering
 
 Environment variables required (.env):
-    OKTA_ORG_URL   — e.g. https://your-org.okta.com
-    OKTA_API_TOKEN — Okta API token with User and Group write permissions
-    SLACK_WEBHOOK_URL — (optional) Slack incoming webhook for welcome notification
+    OKTA_ORG_URL         — e.g. https://your-org.okta.com
+    OKTA_API_TOKEN       — Okta API token with User and Group write permissions
+    SLACK_WEBHOOK_EVENTS — (optional) Slack incoming webhook for #okta-events channel
+    SLACK_WEBHOOK_ERRORS — (optional) Slack incoming webhook for #okta-errors channel
 """
 
 import argparse
 import os
 import sys
+
+# Add project root to sys.path so utils/ is importable when running scripts directly
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
 from okta_client import (
@@ -28,8 +32,7 @@ from okta_client import (
     find_groups_for_department,
 )
 
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
-
+from utils.slack import notify_error, notify_event
 
 # ---------------------------------------------------------------------------
 # Step 1: Create user
@@ -75,28 +78,6 @@ def activate_user(user_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step 4: Send Slack welcome notification (optional)
-# ---------------------------------------------------------------------------
-
-
-def send_slack_notification(first_name: str, last_name: str, department: str) -> None:
-    if not SLACK_WEBHOOK_URL:
-        return
-    message = {
-        "text": (
-            f":wave: Welcome aboard, *{first_name} {last_name}*! "
-            f"They've joined the *{department}* team. "
-            "Okta account created and activation email sent."
-        )
-    }
-    response = requests.post(SLACK_WEBHOOK_URL, json=message)
-    if response.ok:
-        print("Slack notification sent.")
-    else:
-        print(f"Slack notification failed (non-fatal): {response.status_code}")
-
-
-# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -109,22 +90,29 @@ def provision_user(
     department: str,
 ) -> dict:
     """Full joiner flow. Returns the created user object."""
-    user = create_user(first_name, last_name, email, login, department)
-    user_id = user["id"]
+    try:
+        user = create_user(first_name, last_name, email, login, department)
+        user_id = user["id"]
 
-    groups = find_groups_for_department(department)
-    if groups:
-        assign_user_to_groups(user_id, groups)
-    else:
-        print(
-            f"Warning: no groups found for department '{department}' — skipping group assignment."
+        groups = find_groups_for_department(department)
+        if groups:
+            assign_user_to_groups(user_id, groups)
+        else:
+            print(
+                f"Warning: no groups found for department '{department}'"
+                " — skipping group assignment."
+            )
+
+        activate_user(user_id)
+
+        print(f"\nJoiner complete for {first_name} {last_name} ({email}).")
+        notify_event(
+            f":white_check_mark: Joiner complete: *{login}* ({user_id}) provisioned and activated."
         )
-
-    activate_user(user_id)
-    send_slack_notification(first_name, last_name, department)
-
-    print(f"\nJoiner complete for {first_name} {last_name} ({email}).")
-    return user
+        return user
+    except Exception as exc:
+        notify_error(f":x: Joiner failed for *{login}*: {exc}")
+        raise
 
 
 # ---------------------------------------------------------------------------

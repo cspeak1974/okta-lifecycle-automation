@@ -163,39 +163,6 @@ class TestActivateUser:
 
 
 # ---------------------------------------------------------------------------
-# send_slack_notification
-# ---------------------------------------------------------------------------
-
-class TestSendSlackNotification:
-    def test_skips_when_no_webhook_url(self):
-        with patch.object(joiner, "SLACK_WEBHOOK_URL", ""):
-            with patch("scripts.joiner.requests.post") as mock_post:
-                joiner.send_slack_notification("Jane", "Doe", "Engineering")
-
-        mock_post.assert_not_called()
-
-    def test_posts_when_webhook_configured(self):
-        with patch.object(joiner, "SLACK_WEBHOOK_URL", "https://hooks.slack.com/fake"):
-            with patch("scripts.joiner.requests.post") as mock_post:
-                mock_post.return_value = _mock_response(200)
-
-                joiner.send_slack_notification("Jane", "Doe", "Engineering")
-
-        mock_post.assert_called_once()
-        payload = mock_post.call_args[1]["json"]
-        assert "Jane Doe" in payload["text"]
-        assert "Engineering" in payload["text"]
-
-    def test_failed_webhook_does_not_raise(self):
-        with patch.object(joiner, "SLACK_WEBHOOK_URL", "https://hooks.slack.com/fake"):
-            with patch("scripts.joiner.requests.post") as mock_post:
-                mock_post.return_value = _mock_response(500)
-
-                # should not raise — Slack failure is non-fatal
-                joiner.send_slack_notification("Jane", "Doe", "Engineering")
-
-
-# ---------------------------------------------------------------------------
 # provision_user (orchestrator)
 # ---------------------------------------------------------------------------
 
@@ -208,7 +175,8 @@ class TestProvisionUser:
             ) as mock_groups,
             patch("scripts.joiner.assign_user_to_groups") as mock_assign,
             patch("scripts.joiner.activate_user") as mock_activate,
-            patch("scripts.joiner.send_slack_notification") as mock_slack,
+            patch("scripts.joiner.notify_event") as mock_notify_event,
+            patch("scripts.joiner.notify_error") as mock_notify_error,
         ):
             result = joiner.provision_user(
                 first_name="Jane",
@@ -225,7 +193,8 @@ class TestProvisionUser:
         mock_groups.assert_called_once_with("Engineering")
         mock_assign.assert_called_once_with(FAKE_USER["id"], FAKE_GROUPS[:2])
         mock_activate.assert_called_once_with(FAKE_USER["id"])
-        mock_slack.assert_called_once_with("Jane", "Doe", "Engineering")
+        mock_notify_event.assert_called_once()
+        mock_notify_error.assert_not_called()
 
     def test_skips_group_assignment_when_no_groups_found(self):
         with (
@@ -233,7 +202,8 @@ class TestProvisionUser:
             patch("scripts.joiner.find_groups_for_department", return_value=[]),
             patch("scripts.joiner.assign_user_to_groups") as mock_assign,
             patch("scripts.joiner.activate_user"),
-            patch("scripts.joiner.send_slack_notification"),
+            patch("scripts.joiner.notify_event"),
+            patch("scripts.joiner.notify_error"),
         ):
             joiner.provision_user(
                 first_name="Jane",
@@ -244,3 +214,23 @@ class TestProvisionUser:
             )
 
         mock_assign.assert_not_called()
+
+    def test_error_calls_notify_error_and_reraises(self):
+        with (
+            patch(
+                "scripts.joiner.create_user", side_effect=RuntimeError("API error")
+            ),
+            patch("scripts.joiner.notify_event") as mock_notify_event,
+            patch("scripts.joiner.notify_error") as mock_notify_error,
+        ):
+            with pytest.raises(RuntimeError, match="API error"):
+                joiner.provision_user(
+                    first_name="Jane",
+                    last_name="Doe",
+                    email="jane.doe@example.com",
+                    login="jane.doe@example.com",
+                    department="Engineering",
+                )
+
+        mock_notify_error.assert_called_once()
+        mock_notify_event.assert_not_called()

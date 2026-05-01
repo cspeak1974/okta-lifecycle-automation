@@ -193,40 +193,6 @@ class TestUpdateUserDepartment:
 
 
 # ---------------------------------------------------------------------------
-# send_slack_notification
-# ---------------------------------------------------------------------------
-
-
-class TestSendSlackNotification:
-    def test_skips_when_no_webhook_url(self):
-        with patch.object(mover, "SLACK_WEBHOOK_URL", ""):
-            with patch("scripts.mover.requests.post") as mock_post:
-                mover.send_slack_notification("jane.doe@example.com", "Engineering", "Marketing")
-
-        mock_post.assert_not_called()
-
-    def test_posts_with_correct_content(self):
-        with patch.object(mover, "SLACK_WEBHOOK_URL", "https://hooks.slack.com/fake"):
-            with patch("scripts.mover.requests.post") as mock_post:
-                mock_post.return_value = _mock_response(200)
-
-                mover.send_slack_notification("jane.doe@example.com", "Engineering", "Marketing")
-
-        mock_post.assert_called_once()
-        payload = mock_post.call_args[1]["json"]
-        assert "jane.doe@example.com" in payload["text"]
-        assert "Engineering" in payload["text"]
-        assert "Marketing" in payload["text"]
-
-    def test_failed_webhook_does_not_raise(self):
-        with patch.object(mover, "SLACK_WEBHOOK_URL", "https://hooks.slack.com/fake"):
-            with patch("scripts.mover.requests.post") as mock_post:
-                mock_post.return_value = _mock_response(500)
-
-                mover.send_slack_notification("jane.doe@example.com", "Engineering", "Marketing")
-
-
-# ---------------------------------------------------------------------------
 # move_user (orchestrator)
 # ---------------------------------------------------------------------------
 
@@ -241,7 +207,8 @@ class TestMoveUser:
             patch("scripts.mover.remove_user_from_groups") as mock_remove,
             patch("scripts.mover.assign_user_to_groups") as mock_assign,
             patch("scripts.mover.update_user_department") as mock_update,
-            patch("scripts.mover.send_slack_notification") as mock_slack,
+            patch("scripts.mover.notify_event") as mock_notify_event,
+            patch("scripts.mover.notify_error") as mock_notify_error,
         ):
             result = mover.move_user("jane.doe@example.com", "Marketing")
 
@@ -253,9 +220,8 @@ class TestMoveUser:
         mock_remove.assert_called_once_with(FAKE_USER["id"], ENG_GROUPS)
         mock_assign.assert_called_once_with(FAKE_USER["id"], MKT_GROUPS)
         mock_update.assert_called_once_with(FAKE_USER["id"], "Marketing")
-        mock_slack.assert_called_once_with(
-            FAKE_USER["profile"]["login"], "Engineering", "Marketing"
-        )
+        mock_notify_event.assert_called_once()
+        mock_notify_error.assert_not_called()
 
     def test_skips_old_group_removal_when_no_department_on_profile(self):
         with (
@@ -264,7 +230,8 @@ class TestMoveUser:
             patch("scripts.mover.remove_user_from_groups") as mock_remove,
             patch("scripts.mover.assign_user_to_groups"),
             patch("scripts.mover.update_user_department"),
-            patch("scripts.mover.send_slack_notification"),
+            patch("scripts.mover.notify_event"),
+            patch("scripts.mover.notify_error"),
         ):
             mover.move_user("jane.doe@example.com", "Marketing")
 
@@ -279,7 +246,8 @@ class TestMoveUser:
             patch("scripts.mover.remove_user_from_groups") as mock_remove,
             patch("scripts.mover.assign_user_to_groups"),
             patch("scripts.mover.update_user_department"),
-            patch("scripts.mover.send_slack_notification"),
+            patch("scripts.mover.notify_event"),
+            patch("scripts.mover.notify_error"),
         ):
             mover.move_user("jane.doe@example.com", "Marketing")
 
@@ -294,8 +262,23 @@ class TestMoveUser:
             patch("scripts.mover.remove_user_from_groups"),
             patch("scripts.mover.assign_user_to_groups") as mock_assign,
             patch("scripts.mover.update_user_department"),
-            patch("scripts.mover.send_slack_notification"),
+            patch("scripts.mover.notify_event"),
+            patch("scripts.mover.notify_error"),
         ):
             mover.move_user("jane.doe@example.com", "Finance")
 
         mock_assign.assert_not_called()
+
+    def test_error_calls_notify_error_and_reraises(self):
+        with (
+            patch(
+                "scripts.mover.get_user", side_effect=RuntimeError("User not found")
+            ),
+            patch("scripts.mover.notify_event") as mock_notify_event,
+            patch("scripts.mover.notify_error") as mock_notify_error,
+        ):
+            with pytest.raises(RuntimeError, match="User not found"):
+                mover.move_user("nobody@example.com", "Marketing")
+
+        mock_notify_error.assert_called_once()
+        mock_notify_event.assert_not_called()

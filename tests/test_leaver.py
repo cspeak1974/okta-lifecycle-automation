@@ -208,39 +208,6 @@ class TestDeactivateUser:
 
 
 # ---------------------------------------------------------------------------
-# send_slack_notification
-# ---------------------------------------------------------------------------
-
-
-class TestSendSlackNotification:
-    def test_skips_when_no_webhook_url(self):
-        with patch.object(leaver, "SLACK_WEBHOOK_URL", ""):
-            with patch("scripts.leaver.requests.post") as mock_post:
-                leaver.send_slack_notification("jane.doe@example.com")
-
-        mock_post.assert_not_called()
-
-    def test_posts_when_webhook_configured(self):
-        with patch.object(leaver, "SLACK_WEBHOOK_URL", "https://hooks.slack.com/fake"):
-            with patch("scripts.leaver.requests.post") as mock_post:
-                mock_post.return_value = _mock_response(200)
-
-                leaver.send_slack_notification("jane.doe@example.com")
-
-        mock_post.assert_called_once()
-        payload = mock_post.call_args[1]["json"]
-        assert "jane.doe@example.com" in payload["text"]
-
-    def test_failed_webhook_does_not_raise(self):
-        with patch.object(leaver, "SLACK_WEBHOOK_URL", "https://hooks.slack.com/fake"):
-            with patch("scripts.leaver.requests.post") as mock_post:
-                mock_post.return_value = _mock_response(500)
-
-                # should not raise — Slack failure is non-fatal
-                leaver.send_slack_notification("jane.doe@example.com")
-
-
-# ---------------------------------------------------------------------------
 # offboard_user (orchestrator)
 # ---------------------------------------------------------------------------
 
@@ -254,7 +221,8 @@ class TestOffboardUser:
             patch("scripts.leaver.get_user_groups", return_value=NON_SYSTEM_GROUPS) as mock_groups,
             patch("scripts.leaver.remove_user_from_groups") as mock_remove,
             patch("scripts.leaver.deactivate_user") as mock_deactivate,
-            patch("scripts.leaver.send_slack_notification") as mock_slack,
+            patch("scripts.leaver.notify_event") as mock_notify_event,
+            patch("scripts.leaver.notify_error") as mock_notify_error,
         ):
             result = leaver.offboard_user("jane.doe@example.com")
 
@@ -265,7 +233,8 @@ class TestOffboardUser:
         mock_groups.assert_called_once_with(FAKE_USER["id"])
         mock_remove.assert_called_once_with(FAKE_USER["id"], NON_SYSTEM_GROUPS)
         mock_deactivate.assert_called_once_with(FAKE_USER["id"])
-        mock_slack.assert_called_once_with(FAKE_USER["profile"]["login"])
+        mock_notify_event.assert_called_once()
+        mock_notify_error.assert_not_called()
 
     def test_skips_group_removal_when_no_groups(self):
         with (
@@ -275,8 +244,23 @@ class TestOffboardUser:
             patch("scripts.leaver.get_user_groups", return_value=[]),
             patch("scripts.leaver.remove_user_from_groups") as mock_remove,
             patch("scripts.leaver.deactivate_user"),
-            patch("scripts.leaver.send_slack_notification"),
+            patch("scripts.leaver.notify_event"),
+            patch("scripts.leaver.notify_error"),
         ):
             leaver.offboard_user("jane.doe@example.com")
 
         mock_remove.assert_not_called()
+
+    def test_error_calls_notify_error_and_reraises(self):
+        with (
+            patch(
+                "scripts.leaver.get_user", side_effect=RuntimeError("User not found")
+            ),
+            patch("scripts.leaver.notify_event") as mock_notify_event,
+            patch("scripts.leaver.notify_error") as mock_notify_error,
+        ):
+            with pytest.raises(RuntimeError, match="User not found"):
+                leaver.offboard_user("nobody@example.com")
+
+        mock_notify_error.assert_called_once()
+        mock_notify_event.assert_not_called()

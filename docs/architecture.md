@@ -37,6 +37,15 @@ HR System / Manual Trigger
 
 ## Components
 
+### `utils/slack.py`
+Shared Slack notification helpers used by all three lifecycle scripts:
+- `notify_event(message)` — posts to the `#okta-events` channel via `SLACK_WEBHOOK_EVENTS`
+- `notify_error(message)` — posts to the `#okta-errors` channel via `SLACK_WEBHOOK_ERRORS`
+
+Both functions are non-fatal: if the webhook URL is not configured or the request fails, a
+warning is printed and execution continues. Each lifecycle orchestrator calls `notify_event`
+on successful completion and `notify_error` in its except block before re-raising.
+
 ### `scripts/okta_client.py`
 Shared module containing common helpers used across all three scripts:
 - `_headers()` — builds Okta API auth headers
@@ -139,3 +148,10 @@ Currently scripts are triggered manually via CLI. A production implementation
 would integrate with an HR platform (e.g. Workday, BambooHR) via webhooks or
 API polling to trigger lifecycle events automatically when employee records
 change.
+
+### Slack notifications use incoming webhooks
+`utils/slack.py` posts notifications via Slack incoming webhook URLs. This is
+simple to set up but lacks retry logic, rate-limit handling, and rich message
+formatting. A production implementation would use the Slack SDK (`slack_sdk`)
+with proper error handling, exponential backoff, and Block Kit messages for
+richer formatting.

@@ -46,7 +46,8 @@ cp .env.example .env
 ```
 OKTA_ORG_URL=https://your-okta-org.okta.com
 OKTA_API_TOKEN=your-api-token-here
-SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
+SLACK_WEBHOOK_EVENTS=your-slack-webhook-url-for-okta-events (optional)
+SLACK_WEBHOOK_ERRORS=your-slack-webhook-url-for-okta-errors (optional)
 ```
 
 ## Usage
@@ -78,7 +79,10 @@ make test
 ├── scripts/
 │   ├── joiner.py       ← provision new user, assign groups, activate
 │   ├── mover.py        ← update groups/profile on role/department change
-│   └── leaver.py       ← suspend, remove groups, revoke sessions, deactivate
+│   ├── leaver.py       ← suspend, remove groups, revoke sessions, deactivate
+│   └── okta_client.py  ← shared Okta API helpers
+├── utils/
+│   └── slack.py        ← shared Slack notification helpers (notify_event, notify_error)
 ├── tests/              ← pytest tests
 ├── docs/
 │   └── architecture.md ← design decisions and system overview

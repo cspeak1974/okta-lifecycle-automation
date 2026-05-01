@@ -9,14 +9,18 @@ Usage:
     python scripts/mover.py --login jane.doe@example.com --new-department Marketing
 
 Environment variables required (.env):
-    OKTA_ORG_URL   — e.g. https://your-org.okta.com
-    OKTA_API_TOKEN — Okta API token with User and Group write permissions
-    SLACK_WEBHOOK_URL — (optional) Slack incoming webhook for move notification
+    OKTA_ORG_URL         — e.g. https://your-org.okta.com
+    OKTA_API_TOKEN       — Okta API token with User and Group write permissions
+    SLACK_WEBHOOK_EVENTS — (optional) Slack incoming webhook for #okta-events channel
+    SLACK_WEBHOOK_ERRORS — (optional) Slack incoming webhook for #okta-errors channel
 """
 
 import argparse
 import os
 import sys
+
+# Add project root to sys.path so utils/ is importable when running scripts directly
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
 from okta_client import (
@@ -29,8 +33,7 @@ from okta_client import (
     remove_user_from_groups,
 )
 
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
-
+from utils.slack import notify_error, notify_event
 
 # ---------------------------------------------------------------------------
 # Step 3: Update department attribute on Okta profile
@@ -47,62 +50,47 @@ def update_user_department(user_id: str, new_department: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step 6: Send Slack move notification (optional)
-# ---------------------------------------------------------------------------
-
-
-def send_slack_notification(login: str, old_department: str, new_department: str) -> None:
-    if not SLACK_WEBHOOK_URL:
-        return
-    message = {
-        "text": (
-            f":arrows_counterclockwise: *{login}* has moved from "
-            f"*{old_department}* to *{new_department}*. "
-            "Okta group memberships and profile updated."
-        )
-    }
-    response = requests.post(SLACK_WEBHOOK_URL, json=message)
-    if response.ok:
-        print("Slack notification sent.")
-    else:
-        print(f"Slack notification failed (non-fatal): {response.status_code}")
-
-
-# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
 
 def move_user(login_or_id: str, new_department: str) -> dict:
     """Full mover flow. Returns the updated user object."""
-    user = get_user(login_or_id)
-    user_id = user["id"]
-    login = user["profile"]["login"]
-    old_department = user["profile"].get("department", "")
+    try:
+        user = get_user(login_or_id)
+        user_id = user["id"]
+        login = user["profile"]["login"]
+        old_department = user["profile"].get("department", "")
 
-    if old_department:
-        old_groups = find_groups_for_department(old_department)
-        if old_groups:
-            remove_user_from_groups(user_id, old_groups)
+        if old_department:
+            old_groups = find_groups_for_department(old_department)
+            if old_groups:
+                remove_user_from_groups(user_id, old_groups)
+            else:
+                print(f"No groups found for old department '{old_department}' — skipping removal.")
         else:
-            print(f"No groups found for old department '{old_department}' — skipping removal.")
-    else:
-        print("No existing department on profile — skipping old group removal.")
+            print("No existing department on profile — skipping old group removal.")
 
-    new_groups = find_groups_for_department(new_department)
-    if new_groups:
-        assign_user_to_groups(user_id, new_groups)
-    else:
-        print(
-            f"Warning: no groups found for new department '{new_department}'"
-            " — skipping group assignment."
+        new_groups = find_groups_for_department(new_department)
+        if new_groups:
+            assign_user_to_groups(user_id, new_groups)
+        else:
+            print(
+                f"Warning: no groups found for new department '{new_department}'"
+                " — skipping group assignment."
+            )
+
+        update_user_department(user_id, new_department)
+
+        print(f"\nMover complete for {login}: '{old_department}' → '{new_department}'.")
+        notify_event(
+            f":arrows_counterclockwise: Mover complete: *{login}* ({user_id}) moved "
+            f"from *{old_department or '(none)'}* to *{new_department}*."
         )
-
-    update_user_department(user_id, new_department)
-    send_slack_notification(login, old_department or "(none)", new_department)
-
-    print(f"\nMover complete for {login}: '{old_department}' → '{new_department}'.")
-    return user
+        return user
+    except Exception as exc:
+        notify_error(f":x: Mover failed for *{login_or_id}*: {exc}")
+        raise
 
 
 # ---------------------------------------------------------------------------
