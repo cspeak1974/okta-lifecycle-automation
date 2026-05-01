@@ -26,7 +26,10 @@ okta-lifecycle-automation/
 ├── tests/
 │   ├── test_joiner.py
 │   ├── test_mover.py
-│   └── test_leaver.py
+│   ├── test_leaver.py
+│   └── test_slack.py
+├── utils/
+│   └── slack.py        ← shared Slack notification utility
 ├── docs/
 │   └── architecture.md ← design decisions and system overview
 ├── workflows/
@@ -78,8 +81,26 @@ okta-lifecycle-automation/
 ```
 OKTA_ORG_URL=https://your-org.okta.com
 OKTA_API_TOKEN=your-api-token-here
-SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
+SLACK_WEBHOOK_EVENTS=your-okta-events-webhook-url
+SLACK_WEBHOOK_ERRORS=your-okta-errors-webhook-url
 ```
+
+## Slack Notifications
+
+Slack integration is handled via a shared utility module to keep notification logic DRY across all lifecycle scripts.
+
+### utils/slack.py
+- `notify_event(message)` — posts to `#okta-events` channel (successful lifecycle events)
+- `notify_error(message)` — posts to `#okta-errors` channel (exceptions and failures)
+- Both functions use Slack incoming webhook URLs loaded from `.env`
+
+### Usage Pattern
+Each script (joiner.py, leaver.py, mover.py) follows this pattern:
+- Call `notify_event()` on successful completion
+- Call `notify_error()` in except blocks with the error message
+
+### Tests
+- `tests/test_slack.py` — unit tests for both functions using mocked HTTP calls
 
 ## Key Design Decisions
 
@@ -92,7 +113,7 @@ SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
   In production, secrets would be managed via a dedicated secret manager such as
   HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault, with environment
   variables injected at runtime by the deployment platform (Kubernetes, Docker, CI/CD)
-  
+
 ## VS Code Settings Notes
 
 - `python.defaultInterpreterPath` — explicitly points to `.venv` to fix interpreter detection
@@ -123,19 +144,23 @@ SLACK_WEBHOOK_URL=your-slack-webhook-url (optional)
 - [x] `tests/test_joiner.py` written with mocked API calls
 - [x] `make lint` and `make test` both passing
 - [x] Engineering and IT groups created in Okta for testing
-- [x] Write `leaver.py` — suspend, revoke sessions, remove groups, deactivate
-- [x] Write `tests/test_leaver.py`
-- [x] Write `mover.py` — update groups/profile on department change
-- [x] Write `tests/test_mover.py`
+- [x] `leaver.py` written and tested
+- [x] `tests/test_leaver.py` written with mocked API calls
+- [x] `mover.py` written and tested
+- [x] `tests/test_mover.py` written with mocked API calls
+- [x] Okta Workflows — joiner phase complete (error-logger, slack-notification, joiner-trigger)
 
 ## What's Next
 
-- [ ] Build Okta Workflows (5 flows)
+- [ ] Add Slack notifications to Python scripts (utils/slack.py)
+- [ ] Update .env.example with SLACK_WEBHOOK_EVENTS and SLACK_WEBHOOK_ERRORS
+- [ ] Okta Workflows — leaver phase (leaver-trigger + helper flow)
+- [ ] Okta Workflows — mover phase (mover-trigger)
 - [ ] Screenshot and document Workflows in `workflows/`
 - [ ] Write `docs/architecture.md`
 - [ ] Polish README for hiring manager
 - [ ] Set up branch protection on main
-- [ ] Demo dry run
+- [ ] Record Loom demo
 
 ## Optional / Stretch Goals
 
